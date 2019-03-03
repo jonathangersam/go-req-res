@@ -39,7 +39,8 @@ func CaptureRequest(dst io.Writer, h httpHandler) httpHandler {
 		if e != nil {
 			log.Println("failed to read request body, but let the actual handler still do its work")
 		}
-		dst.Write(body)
+		out := fmt.Sprintf(`{"Method":"%s","Body":%s}`, r.Method, body)
+		dst.Write([]byte(out))
 
 		// set the original HttpRequest to read the body again (because it was 'consumed' already by our initial read)
 		r.Body = ioutil.NopCloser(bytes.NewBuffer(body))

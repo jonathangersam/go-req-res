@@ -112,7 +112,7 @@ func Test_CaptureRequest(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	req, e := http.NewRequest(http.MethodGet, ts.URL, bytes.NewBuffer(rawReqBody))
+	req, e := http.NewRequest(http.MethodPut, ts.URL, bytes.NewBuffer(rawReqBody))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -148,6 +148,69 @@ func Test_CaptureRequest(t *testing.T) {
 		t.Errorf("Expected handler to have received Name 'bar' in request body, but got %s", mock.receivedName)
 	}
 	//t.Log("[log]", log.String())
+}
+
+func Test_Capture_Both(t *testing.T) {
+	// arrange
+	handlerResponseBody := sampleResponse{
+		Name:  "foo",
+		Age:   42,
+		Fresh: true,
+	}
+	raw, e := json.Marshal(handlerResponseBody)
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	mock := mockHandler{
+		respStatus: http.StatusOK,
+		respBody:   raw,
+	}
+
+	reqLog := bytes.NewBuffer([]byte{})
+	respLog := bytes.NewBuffer([]byte{})
+	wrappedHandler := CaptureRequest(reqLog, CaptureResponse(respLog, mock.handler))
+
+	ts := httptest.NewServer(http.HandlerFunc(wrappedHandler))
+	defer ts.Close()
+	client := ts.Client()
+
+	reqBody := sampleRequest{
+		Name: "baz",
+	}
+	rawReqBody, e := json.Marshal(reqBody)
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	req, e := http.NewRequest(http.MethodGet, ts.URL, bytes.NewBuffer(rawReqBody))
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	// act
+	res, e := client.Do(req)
+
+	// assert
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	body := bytes.NewBufferString("")
+	io.Copy(body, res.Body)
+
+	// request logger should contain http request
+	if strings.Contains(reqLog.String(), "baz") == false {
+		t.Errorf("Expected request log to contain substring 'baz', but didn't. Contents: %s", reqLog.String())
+	}
+
+	// response logger should contain response
+	if strings.Contains(respLog.String(), "foo") == false {
+		t.Errorf("Expected response log to contain substring 'foo', but didn't. Contents: %s", reqLog.String())
+	}
+
+	//t.Log("[reqLog]", reqLog.String())
+	//t.Log("[respLog]", respLog.String())
 }
 
 type mockHandler struct {
