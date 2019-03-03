@@ -34,7 +34,15 @@ func Test_CaptureResponse(t *testing.T) {
 	defer ts.Close()
 	client := ts.Client()
 
-	req, e := http.NewRequest(http.MethodGet, ts.URL, strings.NewReader("foo"))
+	reqBody := sampleRequest{
+		Name: "baz",
+	}
+	rawReqBody, e := json.Marshal(reqBody)
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	req, e := http.NewRequest(http.MethodGet, ts.URL, bytes.NewBuffer(rawReqBody))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -58,6 +66,11 @@ func Test_CaptureResponse(t *testing.T) {
 	// http response should contain expected http status
 	if res.StatusCode != mock.respStatus {
 		t.Errorf("Expected response http status code to be %d, but got %d", mock.respStatus, res.StatusCode)
+	}
+
+	// handler should have received the request body.
+	if mock.receivedName != "baz" {
+		t.Errorf("Expected handler to have received Name 'baz' in request body, but got %s", mock.receivedName)
 	}
 
 	// logger should contain http response
@@ -134,7 +147,7 @@ func Test_CaptureRequest(t *testing.T) {
 	if mock.receivedName != "bar" {
 		t.Errorf("Expected handler to have received Name 'bar' in request body, but got %s", mock.receivedName)
 	}
-	t.Log("[log]", log.String())
+	//t.Log("[log]", log.String())
 }
 
 type mockHandler struct {
